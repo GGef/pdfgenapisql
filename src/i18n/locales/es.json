@@ -1,0 +1,41 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "loading": "Cargando..."
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "loginError": "Correo o contraseña inválidos"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "imports": "Importaciones",
+    "templates": "Plantillas",
+    "builder": "Generador PDF",
+    "team": "Equipo",
+    "settings": "Configuración"
+  },
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "theme": "Tema",
+    "notifications": "Notificaciones",
+    "dateFormat": "Formato de fecha"
+  },
+  "team": {
+    "title": "Gestión de equipo",
+    "inviteMember": "Invitar miembro",
+    "members": "Miembros del equipo",
+    "role": "Rol",
+    "status": "Estado"
+  }
+}

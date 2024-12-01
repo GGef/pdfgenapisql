@@ -1,0 +1,41 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading..."
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "loginError": "Invalid email or password"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "imports": "Data Imports",
+    "templates": "Templates",
+    "builder": "PDF Builder",
+    "team": "Team",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "dateFormat": "Date Format"
+  },
+  "team": {
+    "title": "Team Management",
+    "inviteMember": "Invite Member",
+    "members": "Team Members",
+    "role": "Role",
+    "status": "Status"
+  }
+}

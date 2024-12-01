@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Template {
+  id        String   @id @default(uuid())
+  name      String
+  content   String   @db.Text
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pdfs      PDF[]
+
+  @@map("templates")
+}
+
+model Import {
+  id           String   @id @default(uuid())
+  fileName     String
+  fileType     String
+  rowCount     Int
+  columnCount  Int
+  headers      String   @db.LongText
+  data         String   @db.LongText
+  createdAt    DateTime @default(now())
+  dateImported DateTime
+  pdfs         PDF[]
+
+  @@map("imports")
+}
+
+model PDF {
+  id         String   @id @default(uuid())
+  name       String
+  templateId String
+  importId   String
+  filePath   String
+  createdAt  DateTime @default(now())
+  import     Import   @relation(fields: [importId], references: [id])
+  template   Template @relation(fields: [templateId], references: [id])
+
+  @@index([importId], map: "pdfs_importId_fkey")
+  @@index([templateId], map: "pdfs_templateId_fkey")
+  @@map("pdfs")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
