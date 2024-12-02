@@ -2,7 +2,7 @@ import { templateService } from '../services/templateService';
 import { ApiResponse } from '../types';
 
 export const templateController = {
-  async getTemplates(): ApiResponse<any> {
+  async getTemplates(): Promise<ApiResponse<any>> {
     try {
       const templates = await templateService.getAllTemplates();
       return { success: true, data: templates };
@@ -11,7 +11,7 @@ export const templateController = {
     }
   },
 
-  async createTemplate(data: any): ApiResponse<any> {
+  async createTemplate(data: any): Promise<ApiResponse<any>> {
     try {
       const template = await templateService.createTemplate(data);
       return { success: true, data: template };
@@ -20,7 +20,7 @@ export const templateController = {
     }
   },
 
-  async updateTemplate(id: string, data: any): ApiResponse<any> {
+  async updateTemplate(id: string, data: any): Promise<ApiResponse<any>> {
     try {
       const template = await templateService.updateTemplate(id, data);
       return { success: true, data: template };
@@ -29,7 +29,7 @@ export const templateController = {
     }
   },
 
-  async deleteTemplate(id: string): ApiResponse<any> {
+  async deleteTemplate(id: string): Promise<ApiResponse<any>> {
     try {
       await templateService.deleteTemplate(id);
       return { success: true };

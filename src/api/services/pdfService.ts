@@ -4,7 +4,7 @@ import { generatePDF } from '../../utils/pdfGenerator';
 
 export const pdfService = {
   async getAllPDFs() {
-    return prisma.pdf.findMany({
+    return prisma.pDF.findMany({
       include: {
         template: true,
         import: true,
@@ -37,7 +37,7 @@ export const pdfService = {
     // Save PDF file and create database record
     const filePath = `/pdfs/${name}`; // In a real app, save the file to storage
 
-    return prisma.pdf.create({
+    return prisma.pDF.create({
       data: {
         name,
         templateId,
@@ -53,13 +53,13 @@ export const pdfService = {
 
   async deletePDF(id: string) {
     // In a real app, also delete the file from storage
-    return prisma.pdf.delete({
+    return prisma.pDF.delete({
       where: { id },
     });
   },
 
   async getPDFById(id: string) {
-    return prisma.pdf.findUnique({
+    return prisma.pDF.findUnique({
       where: { id },
       include: {
         template: true,

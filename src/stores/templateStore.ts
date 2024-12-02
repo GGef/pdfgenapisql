@@ -1,78 +1,69 @@
 import { create } from 'zustand';
-import type { SavedTemplate } from '../types';
 import { templateService } from '../services/templateService';
+import type { SavedTemplate } from '../types';
 
-interface TemplateState {
+interface TemplateStore {
   templates: SavedTemplate[];
   loading: boolean;
   error: string | null;
-  addTemplate: (template: Omit<SavedTemplate, 'id' | 'createdAt' | 'lastUsed'>) => Promise<void>;
-  removeTemplate: (id: string) => Promise<void>;
-  updateTemplate: (id: string, content: string) => Promise<void>;
+  createTemplate: (templateData: Omit<SavedTemplate, 'id' | 'createdAt' | 'lastUsed'>) => Promise<void>;
+  updateTemplate: (id: string, templateData: Partial<SavedTemplate>) => Promise<void>;
+  deleteTemplate: (id: string) => Promise<void>;
   fetchTemplates: () => Promise<void>;
 }
 
-export const useTemplateStore = create<TemplateState>((set, get) => ({
+export const useTemplateStore = create<TemplateStore>((set) => ({
   templates: [],
   loading: false,
   error: null,
 
-  addTemplate: async (templateData) => {
-    set({ loading: true, error: null });
+  createTemplate: async (templateData) => {
     try {
       const response = await templateService.createTemplate(templateData);
       if (response.success && response.data) {
         set((state) => ({
-          templates: [response.data, ...state.templates],
+          templates: [response.data as SavedTemplate, ...state.templates],
+          error: null
         }));
       } else {
         throw new Error(response.error || 'Failed to create template');
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unknown error' });
-      throw error;
-    } finally {
-      set({ loading: false });
     }
   },
 
-  removeTemplate: async (id) => {
-    set({ loading: true, error: null });
+  updateTemplate: async (id, templateData) => {
     try {
-      const response = await templateService.deleteTemplate(id);
-      if (response.success) {
-        set((state) => ({
-          templates: state.templates.filter((t) => t.id !== id),
-        }));
-      } else {
-        throw new Error(response.error || 'Failed to delete template');
-      }
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Unknown error' });
-      throw error;
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  updateTemplate: async (id, content) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await templateService.updateTemplate(id, { content });
+      const response = await templateService.updateTemplate(id, templateData);
       if (response.success && response.data) {
         set((state) => ({
-          templates: state.templates.map((t) =>
-            t.id === id ? { ...t, content, lastUsed: new Date() } : t
+          templates: state.templates.map((template) =>
+            template.id === id ? { ...template, ...response.data } : template
           ),
+          error: null
         }));
       } else {
         throw new Error(response.error || 'Failed to update template');
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unknown error' });
-      throw error;
-    } finally {
-      set({ loading: false });
+    }
+  },
+
+  deleteTemplate: async (id) => {
+    try {
+      const response = await templateService.deleteTemplate(id);
+      if (response.success) {
+        set((state) => ({
+          templates: state.templates.filter((template) => template.id !== id),
+          error: null
+        }));
+      } else {
+        throw new Error(response.error || 'Failed to delete template');
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   },
 
@@ -81,7 +72,10 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
     try {
       const response = await templateService.getTemplates();
       if (response.success && response.data) {
-        set({ templates: response.data });
+        set({ 
+          templates: response.data as SavedTemplate[],
+          error: null
+        });
       } else {
         throw new Error(response.error || 'Failed to fetch templates');
       }

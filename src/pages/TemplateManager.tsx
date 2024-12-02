@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTemplateStore } from '../stores/templateStore';
 import { Pencil, Trash2, Plus, Eye, X, FileUp } from 'lucide-react';
@@ -8,7 +8,15 @@ import VisualTemplateEditor from '../components/VisualTemplateEditor';
 
 export default function TemplateManager() {
   const { t } = useTranslation();
-  const { templates, addTemplate, removeTemplate, updateTemplate } = useTemplateStore();
+  const { 
+    templates, 
+    createTemplate, 
+    deleteTemplate, 
+    updateTemplate, 
+    fetchTemplates, 
+    loading, 
+    error 
+  } = useTemplateStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -16,6 +24,16 @@ export default function TemplateManager() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', content: '' });
   const [importedDocName, setImportedDocName] = useState('');
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(`Failed to load templates: ${error}`);
+    }
+  }, [error]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -58,7 +76,7 @@ export default function TemplateManager() {
         lastUsed: new Date(),
         createdAt: new Date(),
       };
-      addTemplate(template);
+      createTemplate(template);
       setNewTemplate({ name: '', content: '' });
       setShowCreateModal(false);
       toast.success('Template saved successfully!');
@@ -105,54 +123,59 @@ export default function TemplateManager() {
         </div>
       </div>
 
-      {/* Rest of the existing template grid and modals */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {templates.map((template) => (
-          <div
-            key={template.id}
-            className="bg-white shadow rounded-lg overflow-hidden"
-          >
-            {template.previewUrl && (
-              <img
-                src={template.previewUrl}
-                alt={template.name}
-                className="w-full h-48 object-cover"
-              />
-            )}
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                {template.name}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Last used: {new Date(template.lastUsed).toLocaleDateString()}
-              </p>
-              <div className="mt-4 flex justify-end space-x-3">
-                <button
-                  onClick={() => handlePreviewTemplate(template.id)}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  <Eye className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => handleEditTemplate(template.id)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  <Pencil className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    removeTemplate(template.id);
-                    toast.success('Template removed');
-                  }}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+      {loading ? (
+        <div className="text-center py-8">
+          <p>Loading templates...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              className="bg-white shadow rounded-lg overflow-hidden"
+            >
+              {template.previewUrl && (
+                <img
+                  src={template.previewUrl}
+                  alt={template.name}
+                  className="w-full h-48 object-cover"
+                />
+              )}
+              <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {template.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Last used: {new Date(template.lastUsed).toLocaleDateString()}
+                </p>
+                <div className="mt-4 flex justify-end space-x-3">
+                  <button
+                    onClick={() => handlePreviewTemplate(template.id)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <Eye className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => handleEditTemplate(template.id)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    <Pencil className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      deleteTemplate(template.id);
+                      toast.success('Template removed');
+                    }}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Import Modal */}
       {showImportModal && (
