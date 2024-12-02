@@ -9,12 +9,11 @@ const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
 
-app.options('/api/imports', (req, res) => {
-  res.set('Access-Control-Allow-Origin', 'http://localhost:5173');
-  res.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS, DELETE');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.sendStatus(204); // No content for preflight
-});
+// Increase payload size limit
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+app.options('*', cors());
 
 app.use(cors({
   origin: 'http://localhost:5173', // Frontend origin
@@ -22,7 +21,19 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'], // Allowed custom headers
   credentials: true, // Allow credentials (cookies, etc.)
 }));
-app.use(express.json());
+
+// Middleware to ensure JSON responses
+const jsonMiddleware = (req, res, next) => {
+  res.sendJson = (data) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      success: true,
+      data: data
+    });
+  };
+  next();
+};
+app.use(jsonMiddleware);
 
 // Routes for Templates
 app.get('/api/templates', async (req, res) => {
@@ -57,16 +68,10 @@ app.get('/api/templates', async (req, res) => {
         orderBy: { createdAt: 'desc' },
       });
       
-      return res.json({
-        success: true,
-        data: updatedTemplates,
-      });
+      return res.sendJson(updatedTemplates);
     }
 
-    res.json({
-      success: true,
-      data: templates,
-    });
+    res.sendJson(templates);
   } catch (error) {
     console.error('Error in /api/templates route:', error);
     res.status(500).json({
@@ -78,20 +83,27 @@ app.get('/api/templates', async (req, res) => {
 
 app.post('/api/templates', async (req, res) => {
   try {
-    const { name, content } = req.body;
+    const { name, content, previewUrl } = req.body;
     
-    console.log('Creating template with data:', req.body);
-    
+    // Input validation
+    if (!name || !content) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and content are required'
+      });
+    }
+
     const template = await prisma.template.create({
       data: {
-        name: name || 'Unnamed Template',
-        content: content || 'Default template content',
+        name,
+        content,
+        previewUrl,
+        createdAt: new Date(),
+        lastUsed: new Date()
       }
     });
-    
-    console.log('Created template:', template);
-    
-    res.json({
+
+    res.status(201).json({
       success: true,
       data: template
     });
@@ -99,7 +111,7 @@ app.post('/api/templates', async (req, res) => {
     console.error('Error creating template:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'Failed to create template'
+      error: 'Failed to create template'
     });
   }
 });
@@ -107,24 +119,36 @@ app.post('/api/templates', async (req, res) => {
 app.put('/api/templates/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, content } = req.body;
+    const { name, content, previewUrl, lastUsed } = req.body;
+    
+    // Validate input
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Template ID is required'
+      });
+    }
+
     const template = await prisma.template.update({
       where: { id },
       data: {
-        name,
-        content,
-        lastUsed: new Date(),
+        ...(name && { name }),
+        ...(content && { content }),
+        ...(previewUrl && { previewUrl }),
+        lastUsed: lastUsed || new Date(),
       },
     });
-    res.json({
+
+    // Consistent JSON response
+    res.status(200).json({
       success: true,
-      data: template,
+      data: template
     });
   } catch (error) {
     console.error('Error updating template:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update template',
+      error: error.message || 'Failed to update template',
     });
   }
 });
@@ -135,9 +159,7 @@ app.delete('/api/templates/:id', async (req, res) => {
     await prisma.template.delete({
       where: { id },
     });
-    res.json({
-      success: true,
-    });
+    res.sendJson({ success: true });
   } catch (error) {
     console.error('Error deleting template:', error);
     res.status(500).json({
@@ -153,10 +175,7 @@ app.get('/api/imports', async (req, res) => {
     const imports = await prisma.import.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    res.json({
-      success: true,
-      data: imports,
-    });
+    res.sendJson(imports);
   } catch (error) {
     console.error('Error fetching imports:', error);
     res.status(500).json({
@@ -169,7 +188,7 @@ app.get('/api/imports', async (req, res) => {
 app.get('/api/imports/:id', async (req, res) => {
   const response = await importController.getImportById(req.params.id);
   if (response.success) {
-    res.json(response.data);
+    res.sendJson(response.data);
   } else {
     res.status(404).json({ error: response.error });
   }
@@ -183,7 +202,7 @@ app.post('/api/imports', async (req, res) => {
       data: req.body,
     });
 
-    res.status(201).json(importData);
+    res.status(201).sendJson(importData);
   } catch (error) {
     console.error('Error creating import:', error.message, error.stack);
     res.status(500).json({ error: 'Failed to create import', details: error.message });
@@ -209,7 +228,7 @@ app.get('/api/pdfs', async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(pdfs);
+    res.sendJson(pdfs);
   } catch (error) {
     console.error('Error fetching PDFs:', error);
     res.status(500).json({ error: 'Failed to fetch PDFs' });
@@ -225,7 +244,7 @@ app.post('/api/pdfs', async (req, res) => {
         import: true,
       },
     });
-    res.json(pdf);
+    res.sendJson(pdf);
   } catch (error) {
     console.error('Error creating PDF:', error);
     res.status(500).json({ error: 'Failed to create PDF' });
