@@ -70,10 +70,7 @@ export const importService = {
         error: error instanceof Error ? error.message : 'Failed to fetch imports',
       };
     }
-  }
-  
-  
-,  
+  },  
   
 
   async deleteImport(id: string): Promise<ApiResponse<void>> {
@@ -89,5 +86,27 @@ export const importService = {
       };
     }
   },
+
+  async getImportById(id: string): Promise<ApiResponse<ImportedData>> {
+    try {
+      const response = await apiClient.get<ApiResponse<ImportedData>>(`/api/imports/${id}`);
+
+      if (!response || !response.data) {
+        throw new Error('Invalid response from server');
+      }
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch import data',
+      };
+    }
+  },
+
+  
 };
 
