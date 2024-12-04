@@ -22,7 +22,34 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'], // Allowed custom headers
   credentials: true, // Allow credentials (cookies, etc.)
 }));
-app.use(express.json());
+
+// Configure body parser with larger limits and better error handling
+app.use(express.json({
+  limit: '50mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Invalid JSON payload' 
+      });
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Invalid JSON payload' 
+    });
+  }
+  next(err);
+});
 
 // Routes for Templates
 app.get('/api/templates', async (req, res) => {
@@ -84,17 +111,20 @@ app.post('/api/templates', async (req, res) => {
     
     const template = await prisma.template.create({
       data: {
-        name: name || 'Unnamed Template',
-        content: content || 'Default template content',
+        ...req.body,
+        lastUsed: new Date(),
       }
     });
     
-    console.log('Created template:', template);
-    
-    res.json({
-      success: true,
-      data: template
-    });
+    // Refetch templates
+      const updatedTemplates = await prisma.template.findMany({
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      return res.json({
+        success: true,
+        data: updatedTemplates,
+      });
   } catch (error) {
     console.error('Error creating template:', error);
     res.status(500).json({
@@ -105,26 +135,50 @@ app.post('/api/templates', async (req, res) => {
 });
 
 app.put('/api/templates/:id', async (req, res) => {
+  console.log('Incoming template update request:', {
+    id: req.params.id,
+    body: req.body,
+    contentType: req.get('Content-Type')
+  });
+
   try {
     const { id } = req.params;
-    const { name, content } = req.body;
+    let updateData = req.body;
+
+    // Validate the update data
+    if (!updateData || (typeof updateData === 'object' && !updateData.content)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Content is required to update the template'
+      });
+    }
+
+    // If updateData is not an object, wrap it in an object
+    if (typeof updateData !== 'object') {
+      updateData = { content: updateData };
+    }
+
+    // Update template with all provided fields
     const template = await prisma.template.update({
       where: { id },
       data: {
-        name,
-        content,
-        lastUsed: new Date(),
-      },
+        content: updateData.content,
+        ...(updateData.name && { name: updateData.name }),
+        ...(updateData.description && { description: updateData.description }),
+        lastUsed: new Date()
+      }
     });
+
+    console.log('Template updated successfully:', template);
     res.json({
       success: true,
-      data: template,
+      data: template
     });
   } catch (error) {
     console.error('Error updating template:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update template',
+      error: error instanceof Error ? error.message : 'Failed to update template'
     });
   }
 });

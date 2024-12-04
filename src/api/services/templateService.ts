@@ -22,7 +22,6 @@ export const templateService = {
       where: { id },
       data: {
         ...data,
-        lastUsed: new Date(),
       },
     });
   },

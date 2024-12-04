@@ -78,20 +78,22 @@ export const templateService = {
     }
   },
 
-  async updateTemplate(id: string, data: Partial<SavedTemplate>): Promise<ApiResponse<SavedTemplate>> {
+  async updateTemplate(id: string, data: Partial<SavedTemplate> | string): Promise<ApiResponse<SavedTemplate>> {
     try {
-      console.log('Updating template via API', { id, data });
-      const response = await apiClient.put<SavedTemplate>(`/api/templates/${id}`, data);
+      // If data is a string, assume it's the content
+      const updateData = typeof data === 'string' 
+        ? { content: data } 
+        : data;
+
+      console.log('Updating template via API', { id, updateData });
+      const response = await apiClient.put<SavedTemplate>(`/api/templates/${id}`, updateData);
       console.log('Template update response:', response);
+      console.log('Full API response:', JSON.stringify(response, null, 2));
 
       if (response && response.success && response.data) {
         return {
           success: true,
-          data: {
-            ...response.data,
-            lastUsed: response.data.lastUsed ? new Date(response.data.lastUsed) : new Date(),
-            createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date()
-          }
+          data: response.data
         };
       } else {
         console.error('Failed to update template:', response);
@@ -101,7 +103,7 @@ export const templateService = {
         };
       }
     } catch (error) {
-      console.error('Error in templateService.updateTemplate:', error);
+      console.error('Error updating template:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to update template'
