@@ -118,9 +118,23 @@ export default function DataImports() {
 
   const handleDeleteImport = async (id: string) => {
     try {
+      // Add confirmation before deletion
+      const confirmDelete = window.confirm('Are you sure you want to delete this import?');
+      if (!confirmDelete) return;
+
+      setIsLoading(true);
       const response = await importService.deleteImport(id);
+      
       if (response.success) {
+        // Remove the import from the local state
         removeImport(id);
+        
+        // Close the details view if the deleted import was selected
+        if (selectedImport?.id === id) {
+          setSelectedImport(null);
+          setImportDetails(null);
+        }
+        
         toast.success('Import deleted successfully');
       } else {
         throw new Error(response.error || 'Failed to delete import');
@@ -128,6 +142,8 @@ export default function DataImports() {
     } catch (error) {
       toast.error('Failed to delete import');
       console.error('Delete error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

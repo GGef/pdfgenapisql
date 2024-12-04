@@ -208,11 +208,20 @@ app.post('/api/imports', async (req, res) => {
 });
 
 app.delete('/api/imports/:id', async (req, res) => {
-  const response = await importController.deleteImport(req.params.id);
-  if (response.success) {
-    res.sendStatus(204);
-  } else {
-    res.status(500).json({ error: response.error });
+  try {
+    const { id } = req.params;
+    await prisma.import.delete({
+      where: { id },
+    });
+    res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('Error deleting Data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete Data',
+    });
   }
 });
 
