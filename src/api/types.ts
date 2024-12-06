@@ -1,8 +1,15 @@
-export interface ApiResponse<T = any> {
-  dateImported: string | number | Date;
+export interface BaseApiResponse {
   success: boolean;
-  data?: T;
   error?: string;
+}
+
+export interface ApiResponse<T = any> extends BaseApiResponse {
+  data?: T;
+  dateImported?: string | number | Date;
+}
+
+export interface ImportApiResponse extends ApiResponse {
+  dateImported: string | number | Date;
 }
 
 export interface ApiError {

@@ -7,7 +7,7 @@ interface TemplateStore {
   loading: boolean;
   error: string | null;
   createTemplate: (templateData: Omit<SavedTemplate, 'id' | 'createdAt' | 'lastUsed'>) => Promise<void>;
-  updateTemplate: (id: string, templateData: Partial<SavedTemplate>) => Promise<void>;
+  updateTemplate: (id: string, content: string) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
   fetchTemplates: () => Promise<void>;
 }
@@ -33,9 +33,9 @@ export const useTemplateStore = create<TemplateStore>((set) => ({
     }
   },
 
-  updateTemplate: async (id, templateData) => {
+  updateTemplate: async (id, content) => {
     try {
-      const response = await templateService.updateTemplate(id, templateData);
+      const response = await templateService.updateTemplate(id, { content });
       if (response.success && response.data) {
         set((state) => ({
           templates: state.templates.map((template) =>

@@ -17,13 +17,16 @@ export default function TemplateManager() {
     loading, 
     error 
   } = useTemplateStore();
+  
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: '', content: '' });
+  const [editingContent, setEditingContent] = useState('');
   const [importedDocName, setImportedDocName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchTemplates();
@@ -67,37 +70,65 @@ export default function TemplateManager() {
     maxFiles: 1,
   });
 
-  const handleSaveTemplate = () => {
-    if (newTemplate.name && newTemplate.content) {
-      const template = {
-        id: Date.now().toString(),
+  const handleSaveTemplate = async () => {
+    if (!newTemplate.name || !newTemplate.content) {
+      toast.error('Please provide a name and content for the template');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await createTemplate({
         name: newTemplate.name,
         content: newTemplate.content,
-        lastUsed: new Date(),
-        createdAt: new Date(),
-      };
-      createTemplate(template);
+      });
       setNewTemplate({ name: '', content: '' });
       setShowCreateModal(false);
       toast.success('Template saved successfully!');
+    } catch (error) {
+      toast.error('Failed to save template');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleEditTemplate = (templateId: string) => {
-    setSelectedTemplate(templateId);
+  const handleUpdateTemplate = async (content: string) => {
+    if (!selectedTemplate) return;
+
+    setIsSaving(true);
+    try {
+      await updateTemplate(selectedTemplate, content);
+      setEditingContent(content); // Update local state to prevent unnecessary re-renders
+      toast.success('Template updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update template');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleStartEditing = (template: any) => {
+    setSelectedTemplate(template.id);
+    setEditingContent(template.content);
     setShowEditModal(true);
   };
 
-  const handlePreviewTemplate = (templateId: string) => {
-    setSelectedTemplate(templateId);
-    setShowPreviewModal(true);
-  };
+  const handleContentChange = useCallback((content: string) => {
+    setNewTemplate(prev => ({ ...prev, content }));
+  }, []);
 
-  const handleUpdateTemplate = (content: string) => {
-    if (selectedTemplate) {
-      updateTemplate(selectedTemplate, content);
-      toast.success('Template updated successfully!');
-      setShowEditModal(false);
+  const handleEditContentChange = useCallback((content: string) => {
+    setEditingContent(content);
+  }, []);
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this template?')) {
+      try {
+        await deleteTemplate(id);
+        toast.success('Template deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete template');
+      }
     }
   };
 
@@ -124,8 +155,8 @@ export default function TemplateManager() {
       </div>
 
       {loading ? (
-        <div className="text-center py-8">
-          <p>Loading templates...</p>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -134,13 +165,6 @@ export default function TemplateManager() {
               key={template.id}
               className="bg-white shadow rounded-lg overflow-hidden"
             >
-              {template.previewUrl && (
-                <img
-                  src={template.previewUrl}
-                  alt={template.name}
-                  className="w-full h-48 object-cover"
-                />
-              )}
               <div className="p-6">
                 <h3 className="text-lg font-medium text-gray-900">
                   {template.name}
@@ -150,22 +174,22 @@ export default function TemplateManager() {
                 </p>
                 <div className="mt-4 flex justify-end space-x-3">
                   <button
-                    onClick={() => handlePreviewTemplate(template.id)}
+                    onClick={() => {
+                      setSelectedTemplate(template.id);
+                      setShowPreviewModal(true);
+                    }}
                     className="text-gray-600 hover:text-gray-800"
                   >
                     <Eye className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => handleEditTemplate(template.id)}
+                    onClick={() => handleStartEditing(template)}
                     className="text-blue-600 hover:text-blue-800"
                   >
                     <Pencil className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => {
-                      deleteTemplate(template.id);
-                      toast.success('Template removed');
-                    }}
+                    onClick={() => handleDeleteTemplate(template.id)}
                     className="text-red-600 hover:text-red-800"
                   >
                     <Trash2 className="h-5 w-5" />
@@ -210,37 +234,51 @@ export default function TemplateManager() {
         </div>
       )}
 
-      {/* Existing Create Modal */}
-      {showCreateModal && (
+      {/* Create/Edit Modal */}
+      {(showCreateModal || showEditModal) && (
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-white">
             <div className="flex flex-col h-full">
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <div className="flex items-center space-x-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    {importedDocName ? `Import: ${importedDocName}` : 'Create New Template'}
+                    {showCreateModal ? (
+                      importedDocName ? `Import: ${importedDocName}` : 'Create New Template'
+                    ) : 'Edit Template'}
                   </h3>
-                  <input
-                    type="text"
-                    value={newTemplate.name}
-                    onChange={(e) =>
-                      setNewTemplate({ ...newTemplate, name: e.target.value })
-                    }
-                    placeholder="Template name"
-                    className="px-3 py-2 border rounded-md w-64"
-                  />
+                  {showCreateModal && (
+                    <input
+                      type="text"
+                      value={newTemplate.name}
+                      onChange={(e) =>
+                        setNewTemplate({ ...newTemplate, name: e.target.value })
+                      }
+                      placeholder="Template name"
+                      className="px-3 py-2 border rounded-md w-64"
+                    />
+                  )}
                 </div>
                 <div className="flex items-center space-x-4">
                   <button
-                    onClick={handleSaveTemplate}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                    onClick={() => {
+                      if (showCreateModal) {
+                        handleSaveTemplate();
+                      } else {
+                        handleUpdateTemplate(editingContent);
+                      }
+                    }}
+                    disabled={isSaving}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50"
                   >
-                    Save Template
+                    {isSaving ? 'Saving...' : showCreateModal ? 'Save Template' : 'Save Changes'}
                   </button>
                   <button
                     onClick={() => {
-                      setShowCreateModal(false);
+                      showCreateModal ? setShowCreateModal(false) : setShowEditModal(false);
                       setImportedDocName('');
+                      setNewTemplate({ name: '', content: '' });
+                      setEditingContent('');
+                      setSelectedTemplate(null);
                     }}
                     className="text-gray-400 hover:text-gray-500"
                   >
@@ -250,9 +288,10 @@ export default function TemplateManager() {
               </div>
               <div className="flex-1 overflow-hidden">
                 <VisualTemplateEditor
-                  content={newTemplate.content}
-                  onChange={(content) => setNewTemplate({ ...newTemplate, content })}
-                  onSave={handleSaveTemplate}
+                  content={showCreateModal ? newTemplate.content : editingContent}
+                  onChange={showCreateModal ? handleContentChange : handleEditContentChange}
+                  onSave={showCreateModal ? handleSaveTemplate : handleUpdateTemplate}
+                  autoSave={false}
                 />
               </div>
             </div>
@@ -260,43 +299,7 @@ export default function TemplateManager() {
         </div>
       )}
 
-      {/* Existing Edit Modal */}
-      {showEditModal && selectedTemplate && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-white">
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between px-6 py-4 border-b">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Edit Template
-                </h3>
-                <div className="flex items-center space-x-4">
-                  <button
-                    onClick={() => handleUpdateTemplate(templates.find(t => t.id === selectedTemplate)?.content || '')}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <VisualTemplateEditor
-                  content={templates.find((t) => t.id === selectedTemplate)?.content || ''}
-                  onChange={(content) => handleUpdateTemplate(content)}
-                  onSave={() => setShowEditModal(false)}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Existing Preview Modal */}
+      {/* Preview Modal */}
       {showPreviewModal && selectedTemplate && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-auto">
@@ -305,7 +308,10 @@ export default function TemplateManager() {
                 Template Preview
               </h3>
               <button
-                onClick={() => setShowPreviewModal(false)}
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  setSelectedTemplate(null);
+                }}
                 className="text-gray-400 hover:text-gray-500"
               >
                 <X className="h-6 w-6" />
